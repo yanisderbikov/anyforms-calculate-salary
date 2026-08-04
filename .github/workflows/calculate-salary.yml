@@ -1,0 +1,44 @@
+name: Calculate salary
+
+on:
+  schedule:
+    # 1-го и 16-го числа в 10:00 МСК (07:00 UTC, у Москвы нет перевода часов)
+    - cron: '0 7 1,16 * *'
+  workflow_dispatch:
+    inputs:
+      period:
+        description: 'Период вручную: 2026-07:0-15 или 2026-07:16-31 (пусто — по текущей дате)'
+        required: false
+        type: string
+
+concurrency: calculate-salary
+
+permissions:
+  contents: read
+
+jobs:
+  calculate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        run: pytest -q
+
+      - name: Calculate and fill the sheet
+        env:
+          AMOCRM_SUBDOMAIN: ${{ secrets.AMOCRM_SUBDOMAIN }}
+          AMOCRM_ACCESS_TOKEN: ${{ secrets.AMOCRM_ACCESS_TOKEN }}
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+          GOOGLE_SHEETS_SPREADSHEET_ID: 15SuV4LKn_edktKpp6Nwi01kXp9BGDv0gtblvT_HUyBI
+          PERIOD: ${{ github.event.inputs.period }}
+        run: python -m calculate_salary
